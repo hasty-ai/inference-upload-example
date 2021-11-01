@@ -1,4 +1,4 @@
-# Hasty.ai inference engine example
+# Hasty.ai inference engine usage example
 
 This repository is a naive implementation of web app that allows the user to upload an image and get some inferences from the models that are active on https://app.hasty.ai/ in a project they have access to.
 
