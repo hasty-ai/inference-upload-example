@@ -17,7 +17,7 @@ import { theme } from "./theme";
 import { ReactComponent as Logo } from "./icons/hog.svg";
 import { getImageSize, readAsArrayBuffer, readAsDataURL } from "./helpers";
 
-const BASE_URL = `https://api.hasty.ai`;
+const API_BASE_URL = `http://localhost:8080/https://api.hasty.ai`;
 const API_KEY = "";
 const PROJECT_ID = "";
 
@@ -38,7 +38,7 @@ function App() {
 
   const handleModelStatusCheck = async () => {
     setModelStatus("Checking ...");
-    const url = `${BASE_URL}/v1/projects/${projectId}/instance_segmentor`;
+    const url = `${API_BASE_URL}/v1/projects/${projectId}/instance_segmentor`;
     try {
       const response = await fetch(url, { headers });
       const json = await response.json();
@@ -50,7 +50,7 @@ function App() {
   };
 
   const handleUpload = async (e) => {
-    const signedUrlsUrl = `${BASE_URL}/v1/projects/${projectId}/image_uploads`;
+    const signedUrlsUrl = `${API_BASE_URL}/v1/projects/${projectId}/image_uploads`;
     try {
       const signedUrlsResponse = await fetch(signedUrlsUrl, {
         headers,
@@ -62,7 +62,7 @@ function App() {
         const { id, url } = urlsJson.items[0];
         const data = await readAsArrayBuffer(e.target.files[0]);
 
-        await fetch(`http://localhost:8080/${url}`, {
+        await fetch(url, {
           body: data,
           method: "PUT",
           headers: {
@@ -74,7 +74,7 @@ function App() {
         const imageSizes = await getImageSize(e.target.files[0]);
         setImageSizes(imageSizes);
         const response = await fetch(
-          `${BASE_URL}/v1/projects/${projectId}/instance_segmentation`,
+          `${API_BASE_URL}/v1/projects/${projectId}/instance_segmentation`,
           {
             headers,
             method: "POST",
