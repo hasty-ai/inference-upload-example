@@ -17,7 +17,7 @@ import { theme } from "./theme";
 import { ReactComponent as Logo } from "./icons/hog.svg";
 import { getImageSize, readAsArrayBuffer, readAsDataURL } from "./helpers";
 
-const BASE_URL = `http://localhost:8080/https://api.hasty.ai`;
+const BASE_URL = `https://api.hasty.ai`;
 const API_KEY = "";
 const PROJECT_ID = "";
 
