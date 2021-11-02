@@ -79,11 +79,10 @@ function App() {
             headers,
             method: "POST",
             body: JSON.stringify({
-              confidence_threshold: 0.5,
-              max_detections_per_image: 10,
+              // confidence_threshold: 0.5,
+              // max_detections_per_image: 10,
               model_id: modelId,
               upload_id: id,
-              filename: e.target.files[0].name,
             }),
           }
         );
