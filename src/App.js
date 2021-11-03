@@ -70,8 +70,8 @@ function App() {
           },
         });
         const imageUrl = await readAsDataURL(e.target.files[0]);
-        setImageUrl(imageUrl);
         const imageSizes = await getImageSize(e.target.files[0]);
+        setImageUrl(imageUrl);
         setImageSizes(imageSizes);
         const response = await fetch(
           `${API_BASE_URL}/v1/projects/${projectId}/instance_segmentation`,
@@ -162,7 +162,7 @@ function App() {
           <br />
           {imageUrl && imageSizes.width && (
             <CardMediaWithAnnotations
-              style={{ maxWidth: 500 }}
+              style={{ maxWidth: "100%" }}
               originalImageWidth={imageSizes.width}
               labels={labels}
               src={imageUrl}

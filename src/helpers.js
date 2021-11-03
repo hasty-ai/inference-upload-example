@@ -7,7 +7,7 @@ export function getImageSize(image) {
         const img = new Image();
 
         img.onload = () => {
-          resolve({ width: img.width, height: img.height });
+          resolve({ width: img.naturalWidth, height: img.naturalHeight });
         };
 
         img.src = fileReader.result;

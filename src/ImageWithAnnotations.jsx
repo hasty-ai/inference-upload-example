@@ -20,16 +20,17 @@ export const CardMediaWithAnnotations = React.memo(
         setOffsetX(sizes.x);
         setOffsetY(sizes.y);
       },
-      [originalImageWidth],
+      [originalImageWidth, rest.imageUrl],
     );
 
 
     return (
       <div style={{ position: 'relative' }}>
         <img
+          key={rest.imageUrl}
           onLoad={handleLoad}
           {...rest}
-          style={{objectFit: 'contain', background:'black', ...rest.styles}}
+          style={{objectFit: 'contain', maxWidth: '100%', background:'black', ...rest.styles}}
         />
         {labels.map((label, i) => {
           const labelContent = (
@@ -41,8 +42,8 @@ export const CardMediaWithAnnotations = React.memo(
                 left: label.x * labelScale + offsetX,
                 top: label.y * labelScale + offsetY,
                 transform: `scale(${labelScale})`,
-                width: label.width * labelScale,
-                height: label.height * labelScale,
+                width: label.width,
+                height: label.height,
                 transformOrigin: 'top left',
                 background: 'rgba(100, 100, 100, 0.5)',
                 outline:
