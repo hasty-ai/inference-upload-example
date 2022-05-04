@@ -115,7 +115,7 @@ export const App = () => {
         const { id, url } = urlsJson.items[0];
         const data = await readAsArrayBuffer(e.target.files[0]);
 
-        await fetch(`http://localhost:8080/${url}`, {
+        await fetch(`${url}`, {
           body: data,
           method: 'PUT',
           headers: {
