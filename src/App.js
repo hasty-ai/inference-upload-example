@@ -1,5 +1,5 @@
 import './App.css';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { CardMediaWithAnnotations } from './ImageWithAnnotations';
 import {
   AppBar,
@@ -18,13 +18,7 @@ import {
 import { theme } from './theme';
 import { ReactComponent as Logo } from './icons/hog.svg';
 import { getImageSize, readAsArrayBuffer, readAsDataURL } from './helpers';
-import {
-  API_BASE_URL,
-  API_KEY,
-  HEADERS,
-  MODEL_STATUS,
-  PROJECT_ID,
-} from './constants';
+import { API_BASE_URL, API_KEY, MODEL_STATUS, PROJECT_ID } from './constants';
 
 export const App = () => {
   const [key, setKey] = useState(API_KEY);
@@ -47,7 +41,10 @@ export const App = () => {
           : 'object_detection'
       }`,
       {
-        headers: HEADERS,
+        headers: {
+          'X-Api-Key': key,
+          'content-type': 'application/json',
+        },
         method: 'POST',
         body: JSON.stringify({
           // confidence_threshold: 0.5,
@@ -82,12 +79,17 @@ export const App = () => {
     }
   };
 
-  const handleModelStatusCheck = async () => {
+  const handleModelStatusCheck = async (key) => {
     setModelStatus('Checking...');
     const url = `${API_BASE_URL}/v1/projects/${projectId}/${model}`;
 
     try {
-      const response = await fetch(url, { headers: HEADERS });
+      const response = await fetch(url, {
+        headers: {
+          'X-Api-Key': key,
+          'content-type': 'application/json',
+        },
+      });
       const json = await response.json();
 
       setModelStatus(json.status || MODEL_STATUS.ERROR);
@@ -101,7 +103,10 @@ export const App = () => {
     const signedUrlsUrl = `${API_BASE_URL}/v1/projects/${projectId}/image_uploads`;
     try {
       const signedUrlsResponse = await fetch(signedUrlsUrl, {
-        headers: HEADERS,
+        headers: {
+          'X-Api-Key': key,
+          'content-type': 'application/json',
+        },
         method: 'POST',
         body: JSON.stringify({ count: 1 }),
       });
@@ -129,14 +134,17 @@ export const App = () => {
   };
 
   useEffect(() => {
-    if (modelStatus !== MODEL_STATUS.LOADED && !intervalRef.current) {
-      handleModelStatusCheck();
-      intervalRef.current = setInterval(handleModelStatusCheck, 3000);
+    if (modelStatus !== MODEL_STATUS.LOADED && !intervalRef.current && key) {
+      handleModelStatusCheck(key);
+      intervalRef.current = setInterval(
+        () => handleModelStatusCheck(key),
+        3000,
+      );
     } else if (modelStatus === MODEL_STATUS.LOADED) {
       clearInterval(intervalRef.current);
       intervalRef.current = null;
     }
-  }, [modelStatus, handleModelStatusCheck]);
+  }, [modelStatus, handleModelStatusCheck, key, projectId]);
 
   useEffect(() => {
     setModelStatus('Unknown');
@@ -167,14 +175,26 @@ export const App = () => {
             fullWidth
             label="API Key"
             value={key}
-            onChange={(e) => setKey(e.target.value)}
+            onChange={(e) => {
+              if (intervalRef.current) {
+                clearInterval(intervalRef.current);
+                intervalRef.current = null;
+              }
+              setKey(e.target.value);
+            }}
             size={110}
           />
           <TextField
             fullWidth
             label="Project ID"
             value={projectId}
-            onChange={(e) => setProjectId(e.target.value)}
+            onChange={(e) => {
+              if (intervalRef.current) {
+                clearInterval(intervalRef.current);
+                intervalRef.current = null;
+              }
+              setProjectId(e.target.value);
+            }}
             size={110}
           />
           <Stack direction="row" alignItems="center">
