@@ -1,51 +1,101 @@
-import logo from "./logo.svg";
-import "./App.css";
-import { useState } from "react";
-import { CardMediaWithAnnotations } from "./ImageWithAnnotations";
+import './App.css';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { CardMediaWithAnnotations } from './ImageWithAnnotations';
 import {
   AppBar,
   Box,
   Button,
+  FormControl,
+  InputLabel,
+  MenuItem,
+  Select,
   Stack,
   TextField,
   ThemeProvider,
   Toolbar,
   Typography,
-} from "@mui/material";
-import { theme } from "./theme";
+} from '@mui/material';
+import { theme } from './theme';
+import { ReactComponent as Logo } from './icons/hog.svg';
+import { getImageSize, readAsArrayBuffer, readAsDataURL } from './helpers';
+import { API_BASE_URL, API_KEY, MODEL_STATUS, PROJECT_ID } from './constants';
 
-import { ReactComponent as Logo } from "./icons/hog.svg";
-import { getImageSize, readAsArrayBuffer, readAsDataURL } from "./helpers";
-
-const API_BASE_URL = `http://localhost:8080/https://api.hasty.ai`;
-const API_KEY = "";
-const PROJECT_ID = "";
-
-function App() {
+export const App = () => {
   const [key, setKey] = useState(API_KEY);
   const [projectId, setProjectId] = useState(PROJECT_ID);
-
-  const [modelStatus, setModelStatus] = useState("Unknown");
+  const [modelStatus, setModelStatus] = useState(MODEL_STATUS.UNKNOWN);
   const [modelId, setModelId] = useState(null);
   const [imageUrl, setImageUrl] = useState(null);
   const [imageSizes, setImageSizes] = useState({ width: 0, height: 0 });
-  const [labels, setLables] = useState([]);
+  const [labels, setLabels] = useState([]);
+  const [model, setModel] = useState('instance_segmentor');
 
-  const headers = {
-    "X-Api-Key": key,
-    "content-type": "application/json",
+  const intervalRef = useRef();
+  const inputRef = useRef();
+
+  const fetchLabels = async (id) => {
+    const response = await fetch(
+      `${API_BASE_URL}/v1/projects/${projectId}/${
+        model === 'instance_segmentor'
+          ? 'instance_segmentation'
+          : 'object_detection'
+      }`,
+      {
+        headers: {
+          'X-Api-Key': key,
+          'content-type': 'application/json',
+        },
+        method: 'POST',
+        body: JSON.stringify({
+          // confidence_threshold: 0.5,
+          // max_detections_per_image: 10,
+          model_id: modelId,
+          upload_id: id,
+        }),
+      },
+    );
+
+    const json = await response.json();
+
+    setLabels(
+      json.map((inf) => ({
+        ...inf,
+        x: inf.bbox[0],
+        width: inf.bbox[2] - inf.bbox[0],
+        y: inf.bbox[1],
+        height: inf.bbox[3] - inf.bbox[1],
+      })),
+    );
   };
 
-  const handleModelStatusCheck = async () => {
-    setModelStatus("Checking ...");
-    const url = `${API_BASE_URL}/v1/projects/${projectId}/instance_segmentor`;
+  const handleChange = (event) => {
+    setModel(event.target.value);
+    setLabels([]);
+    setImageUrl(null);
+    setImageSizes({ width: 0, height: 0 });
+
+    if (inputRef.current) {
+      inputRef.current.value = null;
+    }
+  };
+
+  const handleModelStatusCheck = async (key) => {
+    setModelStatus('Checking...');
+    const url = `${API_BASE_URL}/v1/projects/${projectId}/${model}`;
+
     try {
-      const response = await fetch(url, { headers });
+      const response = await fetch(url, {
+        headers: {
+          'X-Api-Key': key,
+          'content-type': 'application/json',
+        },
+      });
       const json = await response.json();
-      setModelStatus(json.status || "Error");
+
+      setModelStatus(json.status || MODEL_STATUS.ERROR);
       setModelId(json.model_id || null);
     } catch (e) {
-      setModelStatus("Error");
+      setModelStatus('Error');
     }
   };
 
@@ -53,8 +103,11 @@ function App() {
     const signedUrlsUrl = `${API_BASE_URL}/v1/projects/${projectId}/image_uploads`;
     try {
       const signedUrlsResponse = await fetch(signedUrlsUrl, {
-        headers,
-        method: "POST",
+        headers: {
+          'X-Api-Key': key,
+          'content-type': 'application/json',
+        },
+        method: 'POST',
         body: JSON.stringify({ count: 1 }),
       });
       const urlsJson = await signedUrlsResponse.json();
@@ -62,52 +115,46 @@ function App() {
         const { id, url } = urlsJson.items[0];
         const data = await readAsArrayBuffer(e.target.files[0]);
 
-        await fetch(`http://localhost:8080/${url}`, {
+        await fetch(`${url}`, {
           body: data,
-          method: "PUT",
+          method: 'PUT',
           headers: {
-            "content-type": "image/*",
+            'content-type': 'image/*',
           },
         });
         const imageUrl = await readAsDataURL(e.target.files[0]);
         const imageSizes = await getImageSize(e.target.files[0]);
         setImageUrl(imageUrl);
         setImageSizes(imageSizes);
-        const response = await fetch(
-          `${API_BASE_URL}/v1/projects/${projectId}/instance_segmentation`,
-          {
-            headers,
-            method: "POST",
-            body: JSON.stringify({
-              // confidence_threshold: 0.5,
-              // max_detections_per_image: 10,
-              model_id: modelId,
-              upload_id: id,
-            }),
-          }
-        );
-
-        const json = await response.json();
-        setLables(
-          json.map((inf) => ({
-            ...inf,
-            x: inf.bbox[0],
-            width: inf.bbox[2] - inf.bbox[0],
-            y: inf.bbox[1],
-            height: inf.bbox[3] - inf.bbox[1],
-          }))
-        );
+        fetchLabels(id);
       }
     } catch (e) {
       console.error(e);
     }
   };
 
+  useEffect(() => {
+    if (modelStatus !== MODEL_STATUS.LOADED && !intervalRef.current && key) {
+      handleModelStatusCheck(key);
+      intervalRef.current = setInterval(
+        () => handleModelStatusCheck(key),
+        3000,
+      );
+    } else if (modelStatus === MODEL_STATUS.LOADED) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+  }, [modelStatus, handleModelStatusCheck, key, projectId]);
+
+  useEffect(() => {
+    setModelStatus('Unknown');
+  }, [model]);
+
   return (
     <ThemeProvider theme={theme}>
-      <Box sx={{ flexGrow: 1, bgcolor: "background.body", minHeight: "100vh" }}>
+      <Box sx={{ flexGrow: 1, bgcolor: 'background.body', minHeight: '100vh' }}>
         <AppBar position="static">
-          <Toolbar sx={{ bgcolor: "background.menu" }}>
+          <Toolbar sx={{ bgcolor: 'background.menu' }}>
             <Logo width={85 / 2.2} height={105 / 2.2} />
             <Typography variant="h1" ml={2}>
               Hasty Inference Primer
@@ -115,37 +162,56 @@ function App() {
           </Toolbar>
         </AppBar>
         <Stack spacing={2} sx={{ p: 3, maxWidth: 1400 }}>
+          <FormControl sx={{ maxWidth: 400 }}>
+            <InputLabel id="model-label">Model</InputLabel>
+            <Select labelId="model-label" value={model} onChange={handleChange}>
+              <MenuItem value="object_detector">Object Detection</MenuItem>
+              <MenuItem value="instance_segmentor">
+                Instance Segmentation
+              </MenuItem>
+            </Select>
+          </FormControl>
           <TextField
             fullWidth
             label="API Key"
             value={key}
-            onChange={(e) => setKey(e.target.value)}
+            onChange={(e) => {
+              if (intervalRef.current) {
+                clearInterval(intervalRef.current);
+                intervalRef.current = null;
+              }
+              setKey(e.target.value);
+            }}
             size={110}
           />
           <TextField
             fullWidth
             label="Project ID"
             value={projectId}
-            onChange={(e) => setProjectId(e.target.value)}
+            onChange={(e) => {
+              if (intervalRef.current) {
+                clearInterval(intervalRef.current);
+                intervalRef.current = null;
+              }
+              setProjectId(e.target.value);
+            }}
             size={110}
           />
           <Stack direction="row" alignItems="center">
-            <Typography color="text.secondary" sx={{ width: 200 }}>
-              Model status: {modelStatus}
-            </Typography>
-            <Button
-              size="small"
-              color="secondary"
-              onClick={handleModelStatusCheck}
+            <Typography color="text.secondary">Model status:&nbsp;</Typography>
+            <Typography
+              color="text.secondary"
+              sx={{ textTransform: 'lowercase' }}
             >
-              Check
-            </Button>
+              {modelStatus}
+            </Typography>
           </Stack>
           <input
-            style={{ display: "none" }}
+            ref={inputRef}
+            style={{ display: 'none' }}
             type="file"
             onChange={handleUpload}
-            disabled={modelStatus !== "LOADED"}
+            disabled={modelStatus !== 'LOADED'}
             id="contained-button-file"
             accept=".jpg,.jpeg,.png"
           />
@@ -154,7 +220,7 @@ function App() {
               variant="contained"
               color="primary"
               component="span"
-              disabled={modelStatus !== "LOADED"}
+              disabled={modelStatus !== 'LOADED'}
             >
               Upload
             </Button>
@@ -162,7 +228,7 @@ function App() {
           <br />
           {imageUrl && imageSizes.width && (
             <CardMediaWithAnnotations
-              style={{ maxWidth: "100%" }}
+              style={{ maxWidth: '100%' }}
               originalImageWidth={imageSizes.width}
               labels={labels}
               src={imageUrl}
@@ -172,6 +238,4 @@ function App() {
       </Box>
     </ThemeProvider>
   );
-}
-
-export default App;
+};
