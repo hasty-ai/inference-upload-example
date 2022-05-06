@@ -158,7 +158,7 @@ export const App = () => {
       intervalRef.current = setInterval(handleModelStatusCheck, 3000);
     } else if (modelStatus === MODEL_STATUS.LOADED) {
       clearInterval(intervalRef.current);
-      intervalRef.current = setInterval(handleModelStatusCheck, 300000);
+      intervalRef.current = setInterval(handleModelStatusCheck, 30000);
     }
   }, [modelStatus, handleModelStatusCheck]);
 
