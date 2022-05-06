@@ -1,177 +1,365 @@
-import logo from "./logo.svg";
-import "./App.css";
-import { useState } from "react";
-import { CardMediaWithAnnotations } from "./ImageWithAnnotations";
+import { useEffect, useRef, useState } from 'react';
+import './App.css';
+import { CardMediaWithAnnotations } from './components/imageMediaWithAnnotations/ImageWithAnnotations';
 import {
-  AppBar,
   Box,
   Button,
+  CircularProgress,
+  Container,
+  Grid,
   Stack,
-  TextField,
   ThemeProvider,
   Toolbar,
   Typography,
-} from "@mui/material";
-import { theme } from "./theme";
+} from '@mui/material';
+import { theme } from './theme';
+import { ReactComponent as Logo } from './img/hog.svg';
+import { getImageSize, readAsArrayBuffer, readAsDataURL } from './helpers';
+import { API_BASE_URL, HEADERS, MODEL_STATUS, PROJECT_ID } from './constants';
+import { LabelClasses } from './components/labelClasses/LabelClasses';
+import BottomLeftPattern from './img/bottomLeftPattern.svg';
+import Flywheel from './img/flywheel.svg';
+import Success from './img/success.svg';
+import RightPattern from './img/rightPattern.svg';
+import { UploadBox } from './components/uploadBox/UploadBox';
 
-import { ReactComponent as Logo } from "./icons/hog.svg";
-import { getImageSize, readAsArrayBuffer, readAsDataURL } from "./helpers";
-
-const API_BASE_URL = `http://localhost:8080/https://api.hasty.ai`;
-const API_KEY = "";
-const PROJECT_ID = "";
-
-function App() {
-  const [key, setKey] = useState(API_KEY);
-  const [projectId, setProjectId] = useState(PROJECT_ID);
-
-  const [modelStatus, setModelStatus] = useState("Unknown");
+export const App = () => {
+  const [labelClasses, setLabelClasses] = useState([]);
+  const [modelStatus, setModelStatus] = useState(MODEL_STATUS.UNKNOWN);
   const [modelId, setModelId] = useState(null);
   const [imageUrl, setImageUrl] = useState(null);
   const [imageSizes, setImageSizes] = useState({ width: 0, height: 0 });
-  const [labels, setLables] = useState([]);
+  const [labels, setLabels] = useState([]);
+  const [model, setModel] = useState('instance_segmentor');
+  const [imageUploading, setImageUploading] = useState(false);
+  const [showPredictions, setShowPredictions] = useState(false);
+  const [imageName, setImageName] = useState('');
+  const [threshold, setThreshold] = useState(50);
+  const [confidence, setConfidence] = useState(50);
 
-  const headers = {
-    "X-Api-Key": key,
-    "content-type": "application/json",
+  const intervalRef = useRef();
+  const inputRef = useRef();
+
+  const fetchLabels = async (id) => {
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/v1/projects/${PROJECT_ID}/${
+          model === 'instance_segmentor'
+            ? 'instance_segmentation'
+            : 'object_detection'
+        }?include_border_mask=true`,
+        {
+          headers: HEADERS,
+          method: 'POST',
+          body: JSON.stringify({
+            model_id: modelId,
+            upload_id: id,
+          }),
+        },
+      );
+
+      const json = await response.json();
+
+      setLabels(
+        json.map((inf) => ({
+          ...inf,
+          x: inf.bbox[0],
+          width: inf.bbox[2] - inf.bbox[0],
+          y: inf.bbox[1],
+          height: inf.bbox[3] - inf.bbox[1],
+        })),
+      );
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  const handleChange = (event) => {
+    setModel(event.target.value);
+    setLabels([]);
+    setImageUrl(null);
+    setImageSizes({ width: 0, height: 0 });
+
+    if (inputRef.current) {
+      inputRef.current.value = null;
+    }
   };
 
   const handleModelStatusCheck = async () => {
-    setModelStatus("Checking ...");
-    const url = `${API_BASE_URL}/v1/projects/${projectId}/instance_segmentor`;
+    setModelStatus('Checking...');
+    const url = `${API_BASE_URL}/v1/projects/${PROJECT_ID}/${model}`;
+
     try {
-      const response = await fetch(url, { headers });
+      const response = await fetch(url, { headers: HEADERS });
       const json = await response.json();
-      setModelStatus(json.status || "Error");
+
+      setModelStatus(json.status || MODEL_STATUS.ERROR);
       setModelId(json.model_id || null);
     } catch (e) {
-      setModelStatus("Error");
+      setModelStatus('Error');
     }
+  };
+
+  const fetchLabelClasses = async () => {
+    const url = `${API_BASE_URL}/v1/projects/${PROJECT_ID}/label_classes`;
+    const labelClassesResponse = await fetch(url, {
+      headers: HEADERS,
+      method: 'GET',
+      // body: {
+      // todo @current
+      // },
+    });
+    const labelClassesJson = await labelClassesResponse.json();
+
+    setLabelClasses(labelClassesJson.items);
   };
 
   const handleUpload = async (e) => {
-    const signedUrlsUrl = `${API_BASE_URL}/v1/projects/${projectId}/image_uploads`;
+    const signedUrlsUrl = `${API_BASE_URL}/v1/projects/${PROJECT_ID}/image_uploads`;
+
     try {
+      setImageUploading(true);
       const signedUrlsResponse = await fetch(signedUrlsUrl, {
-        headers,
-        method: "POST",
+        headers: HEADERS,
+        method: 'POST',
         body: JSON.stringify({ count: 1 }),
       });
       const urlsJson = await signedUrlsResponse.json();
+
       if (urlsJson?.items?.[0]) {
         const { id, url } = urlsJson.items[0];
-        const data = await readAsArrayBuffer(e.target.files[0]);
+        const data = await readAsArrayBuffer(e[0]);
 
         await fetch(`http://localhost:8080/${url}`, {
           body: data,
-          method: "PUT",
+          method: 'PUT',
           headers: {
-            "content-type": "image/*",
+            'content-type': 'image/*',
           },
         });
-        const imageUrl = await readAsDataURL(e.target.files[0]);
-        const imageSizes = await getImageSize(e.target.files[0]);
+        const imageUrl = await readAsDataURL(e[0]);
+        const imageSizes = await getImageSize(e[0]);
+        setImageName(e[0].name);
         setImageUrl(imageUrl);
         setImageSizes(imageSizes);
-        const response = await fetch(
-          `${API_BASE_URL}/v1/projects/${projectId}/instance_segmentation`,
-          {
-            headers,
-            method: "POST",
-            body: JSON.stringify({
-              // confidence_threshold: 0.5,
-              // max_detections_per_image: 10,
-              model_id: modelId,
-              upload_id: id,
-            }),
-          }
-        );
-
-        const json = await response.json();
-        setLables(
-          json.map((inf) => ({
-            ...inf,
-            x: inf.bbox[0],
-            width: inf.bbox[2] - inf.bbox[0],
-            y: inf.bbox[1],
-            height: inf.bbox[3] - inf.bbox[1],
-          }))
-        );
+        fetchLabels(id);
+        fetchLabelClasses();
       }
     } catch (e) {
       console.error(e);
+    } finally {
+      setImageUploading(false);
     }
   };
 
+  useEffect(() => {
+    if (modelStatus !== MODEL_STATUS.LOADED && !intervalRef.current) {
+      handleModelStatusCheck();
+      intervalRef.current = setInterval(handleModelStatusCheck, 3000);
+    } else if (modelStatus === MODEL_STATUS.LOADED) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = setInterval(handleModelStatusCheck, 30000);
+    }
+  }, [modelStatus, handleModelStatusCheck]);
+
+  useEffect(
+    () => () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+      }
+    },
+    [],
+  );
+
+  useEffect(() => {
+    setModelStatus(MODEL_STATUS.UNKNOWN);
+  }, [model]);
+
   return (
     <ThemeProvider theme={theme}>
-      <Box sx={{ flexGrow: 1, bgcolor: "background.body", minHeight: "100vh" }}>
-        <AppBar position="static">
-          <Toolbar sx={{ bgcolor: "background.menu" }}>
-            <Logo width={85 / 2.2} height={105 / 2.2} />
-            <Typography variant="h1" ml={2}>
-              Hasty Inference Primer
-            </Typography>
-          </Toolbar>
-        </AppBar>
-        <Stack spacing={2} sx={{ p: 3, maxWidth: 1400 }}>
-          <TextField
-            fullWidth
-            label="API Key"
-            value={key}
-            onChange={(e) => setKey(e.target.value)}
-            size={110}
+      <Box
+        sx={{
+          flexGrow: 1,
+          bgcolor: 'background.body',
+          minHeight: '100vh',
+          position: 'relative',
+        }}
+      >
+        {!showPredictions ? (
+          <img
+            style={{
+              position: 'absolute',
+              width: 531,
+              left: 0,
+              height: 364,
+              bottom: 0,
+              zIndex: 1,
+            }}
+            src={BottomLeftPattern}
           />
-          <TextField
-            fullWidth
-            label="Project ID"
-            value={projectId}
-            onChange={(e) => setProjectId(e.target.value)}
-            size={110}
+        ) : null}
+        {showPredictions ? (
+          <img
+            style={{
+              position: 'absolute',
+              width: 'auto',
+              right: 0,
+              height: 'calc(100% - 64px)',
+              bottom: 0,
+              top: 64,
+              zIndex: 1,
+            }}
+            src={RightPattern}
           />
-          <Stack direction="row" alignItems="center">
-            <Typography color="text.secondary" sx={{ width: 200 }}>
-              Model status: {modelStatus}
-            </Typography>
-            <Button
-              size="small"
-              color="secondary"
-              onClick={handleModelStatusCheck}
-            >
-              Check
-            </Button>
+        ) : null}
+        <Toolbar sx={{ bgcolor: 'background.body' }}>
+          <Stack
+            direction="row"
+            justifyContent="space-between"
+            flex={1}
+            alignItems="center"
+          >
+            <Stack direction="row" alignItems="center">
+              <Logo width={85 / 2.2} height={105 / 2.2} />
+              <Typography variant="h1" ml={2}>
+                Hasty Inference Primer
+              </Typography>
+            </Stack>
+            <Box>
+              <Typography variant="h5" color="#4482C3">
+                PCB Components
+              </Typography>
+            </Box>
           </Stack>
-          <input
-            style={{ display: "none" }}
-            type="file"
-            onChange={handleUpload}
-            disabled={modelStatus !== "LOADED"}
-            id="contained-button-file"
-            accept=".jpg,.jpeg,.png"
-          />
-          <label htmlFor="contained-button-file">
-            <Button
-              variant="contained"
-              color="primary"
-              component="span"
-              disabled={modelStatus !== "LOADED"}
-            >
-              Upload
-            </Button>
-          </label>
-          <br />
-          {imageUrl && imageSizes.width && (
-            <CardMediaWithAnnotations
-              style={{ maxWidth: "100%" }}
-              originalImageWidth={imageSizes.width}
-              labels={labels}
-              src={imageUrl}
-            />
-          )}
-        </Stack>
+        </Toolbar>
+        <Box position="relative" zIndex={2}>
+          <Container spacing={2} sx={{ p: 3 }}>
+            {/*<FormControl sx={{ maxWidth: 400 }}>*/}
+            {/*<InputLabel id="model-label">Model</InputLabel>*/}
+            {/*<Select labelId="model-label" value={model} onChange={handleChange}>*/}
+            {/*  <MenuItem value="object_detector">Object Detection</MenuItem>*/}
+            {/*  <MenuItem value="instance_segmentor">*/}
+            {/*    Instance Segmentation*/}
+            {/*  </MenuItem>*/}
+            {/*</Select>*/}
+            {/*</FormControl>*/}
+            <Stack direction="row" alignItems="center">
+              <Typography color="text.secondary">
+                Model status:&nbsp;
+              </Typography>
+              <Typography
+                color="text.secondary"
+                sx={{ textTransform: 'lowercase' }}
+              >
+                {modelStatus}
+              </Typography>
+              {modelStatus === MODEL_STATUS.CHECKING && (
+                <CircularProgress size="1em" sx={{ ml: 1 }} />
+              )}
+            </Stack>
+            {!showPredictions ? (
+              <Grid container>
+                <Grid item xs={6} alignItems="flex-end">
+                  <Typography variant="h5" color="#4482C3" sx={{ mb: 3 }}>
+                    Upload your image
+                  </Typography>
+                  <UploadBox
+                    onDrop={handleUpload}
+                    disabled={modelStatus !== MODEL_STATUS.LOADED}
+                    inProgress={imageUploading}
+                  />
+                  <Stack
+                    direction="row"
+                    justifyContent="space-between"
+                    alignItems="center"
+                  >
+                    <Stack
+                      direction="row"
+                      alignItems="center"
+                      visibility={
+                        !imageUrl && !imageSizes.width ? 'hidden' : 'visible'
+                      }
+                    >
+                      <img
+                        src={Success}
+                        alt="success icon"
+                        style={{ height: 16, width: 16, marginRight: 5 }}
+                      />
+                      File uploaded successfully
+                    </Stack>
+                    <Button
+                      sx={{ mt: 2, backgroundColor: '#2666A8' }}
+                      variant="outlined"
+                      disabled={!imageUrl && !imageSizes.width}
+                      onClick={() => setShowPredictions(true)}
+                    >
+                      See predictions
+                    </Button>
+                  </Stack>
+                </Grid>
+                <Grid item xs={6} textAlign="center">
+                  <img src={Flywheel} alt="flywheel" height="100%" />
+                </Grid>
+              </Grid>
+            ) : null}
+            {showPredictions ? (
+              <Grid container>
+                <Grid item xs={8}>
+                  <CardMediaWithAnnotations
+                    style={{ maxWidth: '100%' }}
+                    originalImageWidth={imageSizes.width}
+                    labels={labels}
+                    labelClasses={labelClasses}
+                    src={imageUrl}
+                  />
+                </Grid>
+                <Grid item xs={4} sx={{ bgcolor: 'background.default', p: 2 }}>
+                  <Stack direction="column" height="100%">
+                    <Typography color="text.secondary">
+                      Image: {imageName}
+                    </Typography>
+                    {labels.length ? (
+                      <Typography color="text.secondary">
+                        {labels.length} predicted{' '}
+                        {labels.length === 1 ? 'label' : 'labels'}
+                      </Typography>
+                    ) : (
+                      <Typography
+                        color="text.primary"
+                        sx={{ fontWeight: 'bold' }}
+                      >
+                        No predicted labels
+                      </Typography>
+                    )}
+                    {labelClasses.length ? (
+                      <LabelClasses
+                        setConfidence={setConfidence}
+                        setThreshold={setThreshold}
+                        threshold={threshold}
+                        confidence={confidence}
+                        labelClasses={labelClasses}
+                        labels={labels}
+                      />
+                    ) : null}
+                  </Stack>
+                </Grid>
+                <Button
+                  sx={{ mt: 2, backgroundColor: '#2666A8' }}
+                  variant="outlined"
+                  onClick={() => {
+                    setShowPredictions(false);
+                    setLabels([]);
+                    setImageUrl(null);
+                    setImageSizes({ width: 0, height: 0 });
+                  }}
+                >
+                  Upload new image
+                </Button>
+              </Grid>
+            ) : null}
+          </Container>
+        </Box>
       </Box>
     </ThemeProvider>
   );
-}
-
-export default App;
+};
