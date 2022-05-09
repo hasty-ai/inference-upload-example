@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import isEqual from 'lodash/isEqual';
 import './App.css';
 import { CardMediaWithAnnotations } from './components/imageMediaWithAnnotations/ImageWithAnnotations';
 import {
@@ -37,6 +38,10 @@ export const App = () => {
   const [uploadId, setUploadId] = useState();
   const [threshold, setThreshold] = useState(50);
   const [confidence, setConfidence] = useState(50);
+  const [lastValues, setLastValues] = useState({
+    confidence: 50,
+    threshold: 50,
+  });
 
   const intervalRef = useRef();
   const inputRef = useRef();
@@ -72,6 +77,7 @@ export const App = () => {
           height: inf.bbox[3] - inf.bbox[1],
         })),
       );
+      setLastValues({ confidence, threshold });
     } catch (error) {
       console.error(error);
     }
@@ -108,9 +114,6 @@ export const App = () => {
     const labelClassesResponse = await fetch(url, {
       headers: HEADERS,
       method: 'GET',
-      // body: {
-      // todo @current
-      // },
     });
     const labelClassesJson = await labelClassesResponse.json();
 
@@ -118,7 +121,9 @@ export const App = () => {
   };
 
   const refetch = () => {
-    fetchLabels(uploadId);
+    if (!isEqual(lastValues, { confidence, threshold })) {
+      fetchLabels(uploadId);
+    }
   };
 
   const handleUpload = async (e) => {
@@ -182,10 +187,6 @@ export const App = () => {
   useEffect(() => {
     setModelStatus(MODEL_STATUS.UNKNOWN);
   }, [model]);
-
-  useEffect(() => {
-    refetch();
-  }, [confidence, threshold]);
 
   return (
     <ThemeProvider theme={theme}>
@@ -351,6 +352,7 @@ export const App = () => {
                         confidence={confidence}
                         labelClasses={labelClasses}
                         labels={labels}
+                        refetch={refetch}
                       />
                     ) : null}
                   </Stack>

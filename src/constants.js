@@ -5,7 +5,7 @@ export const API_KEY =
 // export const API_KEY =
 //   '19hkg36JsCn5VlaMHU9xaHpUz2GzPMxp3b5FE6NEyyYzQvuTZn0o67CaXKsPQ2IAj5kvAMXy3inMV-jNV4vJ8Q';
 // export const PROJECT_ID = '8061497a-2eb9-40c1-971c-b05d07f5a7e7';
-export const PROJECT_ID = '111e1d8b-5ced-4c53-bad0-14b5f621d985';
+export const PROJECT_ID = '8061497a-2eb9-40c1-971c-b05d07f5a7e7';
 export const MODEL_STATUS = {
   LOADED: 'LOADED',
   ERROR: 'ERROR',

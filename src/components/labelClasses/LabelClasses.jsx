@@ -10,6 +10,7 @@ export const LabelClasses = ({
   setThreshold,
   confidence,
   threshold,
+  refetch,
 }) => {
   const labelsCountMap = labelClasses
     .map(({ id }) => id)
@@ -26,7 +27,18 @@ export const LabelClasses = ({
           <OutlinedInput
             value={confidence}
             type="number"
-            onChange={(event) => setConfidence(event.target.value)}
+            onChange={(event) => {
+              let value = event.target.value;
+
+              if (value > 100) {
+                value = 100;
+              }
+              if (value < 0) {
+                value = 0;
+              }
+              setConfidence(+value);
+            }}
+            onBlur={refetch}
           />
         </FormControl>
         <FormControl sx={{ width: '49%' }}>
@@ -34,7 +46,18 @@ export const LabelClasses = ({
           <OutlinedInput
             value={threshold}
             type="number"
-            onChange={(event) => setThreshold(event.target.value)}
+            onChange={(event) => {
+              let value = event.target.value;
+
+              if (value > 100) {
+                value = 100;
+              }
+              if (value < 0) {
+                value = 0;
+              }
+              setThreshold(+value);
+            }}
+            onBlur={refetch}
           />
         </FormControl>
       </Stack>
