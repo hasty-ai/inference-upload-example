@@ -34,6 +34,7 @@ export const App = () => {
   const [imageUploading, setImageUploading] = useState(false);
   const [showPredictions, setShowPredictions] = useState(false);
   const [imageName, setImageName] = useState('');
+  const [uploadId, setUploadId] = useState();
   const [threshold, setThreshold] = useState(50);
   const [confidence, setConfidence] = useState(50);
 
@@ -54,6 +55,8 @@ export const App = () => {
           body: JSON.stringify({
             model_id: modelId,
             upload_id: id,
+            confidence_threshold: confidence / 100,
+            masker_threshold: threshold / 100,
           }),
         },
       );
@@ -114,6 +117,10 @@ export const App = () => {
     setLabelClasses(labelClassesJson.items);
   };
 
+  const refetch = () => {
+    fetchLabels(uploadId);
+  };
+
   const handleUpload = async (e) => {
     const signedUrlsUrl = `${API_BASE_URL}/v1/projects/${PROJECT_ID}/image_uploads`;
 
@@ -142,6 +149,7 @@ export const App = () => {
         setImageName(e[0].name);
         setImageUrl(imageUrl);
         setImageSizes(imageSizes);
+        setUploadId(id);
         fetchLabels(id);
         fetchLabelClasses();
       }
@@ -174,6 +182,10 @@ export const App = () => {
   useEffect(() => {
     setModelStatus(MODEL_STATUS.UNKNOWN);
   }, [model]);
+
+  useEffect(() => {
+    refetch();
+  }, [confidence, threshold]);
 
   return (
     <ThemeProvider theme={theme}>

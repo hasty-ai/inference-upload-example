@@ -25,6 +25,7 @@ export const LabelClasses = ({
           <InputLabel>Confidence</InputLabel>
           <OutlinedInput
             value={confidence}
+            type="number"
             onChange={(event) => setConfidence(event.target.value)}
           />
         </FormControl>
@@ -32,6 +33,7 @@ export const LabelClasses = ({
           <InputLabel>Masker threshold</InputLabel>
           <OutlinedInput
             value={threshold}
+            type="number"
             onChange={(event) => setThreshold(event.target.value)}
           />
         </FormControl>
