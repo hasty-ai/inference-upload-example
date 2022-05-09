@@ -1,5 +1,5 @@
 // export const API_BASE_URL = `https://api-default-none-kp.dev.hasty.ai`;
-export const API_BASE_URL = `https://api.hasty.ai`;
+export const API_BASE_URL = `http://localhost:8080/https://api.hasty.ai`;
 export const API_KEY =
   'zX0ZBRL7Kml4w2jidFjh917IZX5sdY9YEpm0hY2QZDIg9gLdogniIzNHTfQN2TGET-cO4NK9ry9cRGRQ9-y8WQ';
 // export const API_KEY =
