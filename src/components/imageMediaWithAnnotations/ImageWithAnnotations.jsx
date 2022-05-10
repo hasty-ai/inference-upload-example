@@ -1,7 +1,14 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import chroma from 'chroma-js';
 import { getObjectFitSize } from '../../helpers';
-import { Box, Paper, Stack, Tooltip, Typography } from '@mui/material';
+import {
+  Box,
+  CircularProgress,
+  Paper,
+  Stack,
+  Tooltip,
+  Typography,
+} from '@mui/material';
 import { ColoredSquare } from '../coloredSquare/ColoredSquare';
 
 export const CardMediaWithAnnotations = React.memo(
@@ -10,6 +17,7 @@ export const CardMediaWithAnnotations = React.memo(
     labels,
     labelClasses,
     showLabelWhiteBox = false,
+    predictionsLoading,
     ...rest
   }) => {
     const [offsetX, setOffsetX] = useState(0);
@@ -50,6 +58,34 @@ export const CardMediaWithAnnotations = React.memo(
 
     return (
       <Stack style={{ position: 'relative' }}>
+        {predictionsLoading && (
+          <>
+            <Box
+              sx={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                margin: 'auto',
+                background: '#dddddd80',
+                pointerEvents: 'none',
+                zIndex: 1,
+              }}
+            />
+            <CircularProgress
+              sx={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                margin: 'auto',
+                zIndex: 2,
+              }}
+            />
+          </>
+        )}
         <img
           alt="label"
           key={rest.imageUrl}

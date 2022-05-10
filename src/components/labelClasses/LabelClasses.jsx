@@ -1,7 +1,7 @@
 import React from 'react';
-import { ColoredSquare } from '../coloredSquare/ColoredSquare';
-import { Box, FormControl, InputLabel, Stack, Typography } from '@mui/material';
 import { OutlinedInput } from '@mui/material';
+import { Box, FormControl, InputLabel, Stack, Typography } from '@mui/material';
+import { ColoredSquare } from '../coloredSquare/ColoredSquare';
 
 export const LabelClasses = ({
   labelClasses,
@@ -33,10 +33,11 @@ export const LabelClasses = ({
               if (value > 100) {
                 value = 100;
               }
-              if (value < 0) {
+              if (value < 0 && value !== '') {
                 value = 0;
               }
-              setConfidence(+value);
+
+              setConfidence(value);
             }}
             onBlur={refetch}
           />
@@ -52,9 +53,10 @@ export const LabelClasses = ({
               if (value > 100) {
                 value = 100;
               }
-              if (value < 0) {
+              if (value < 0 && value !== '') {
                 value = 0;
               }
+
               setThreshold(+value);
             }}
             onBlur={refetch}

@@ -16,7 +16,13 @@ import {
 import { theme } from './theme';
 import { ReactComponent as Logo } from './img/hog.svg';
 import { getImageSize, readAsArrayBuffer, readAsDataURL } from './helpers';
-import { API_BASE_URL, HEADERS, MODEL_STATUS, PROJECT_ID } from './constants';
+import {
+  API_BASE_URL,
+  HEADERS,
+  MODEL_STATUS,
+  PROJECT_ID,
+  PROXY,
+} from './constants';
 import { LabelClasses } from './components/labelClasses/LabelClasses';
 import BottomLeftPattern from './img/bottomLeftPattern.svg';
 import Flywheel from './img/flywheel.svg';
@@ -38,6 +44,7 @@ export const App = () => {
   const [uploadId, setUploadId] = useState();
   const [threshold, setThreshold] = useState(50);
   const [confidence, setConfidence] = useState(50);
+  const [predictionsLoading, setPredictionsLoading] = useState(false);
   const [lastValues, setLastValues] = useState({
     confidence: 50,
     threshold: 50,
@@ -48,6 +55,8 @@ export const App = () => {
 
   const fetchLabels = async (id) => {
     try {
+      setPredictionsLoading(true);
+
       const response = await fetch(
         `${API_BASE_URL}/v1/projects/${PROJECT_ID}/${
           model === 'instance_segmentor'
@@ -80,6 +89,8 @@ export const App = () => {
       setLastValues({ confidence, threshold });
     } catch (error) {
       console.error(error);
+    } finally {
+      setPredictionsLoading(false);
     }
   };
 
@@ -121,7 +132,11 @@ export const App = () => {
   };
 
   const refetch = () => {
-    if (!isEqual(lastValues, { confidence, threshold })) {
+    if (
+      !isEqual(lastValues, { confidence, threshold }) &&
+      confidence !== '' &&
+      threshold !== ''
+    ) {
       fetchLabels(uploadId);
     }
   };
@@ -142,7 +157,7 @@ export const App = () => {
         const { id, url } = urlsJson.items[0];
         const data = await readAsArrayBuffer(e[0]);
 
-        await fetch(`http://localhost:8080/${url}`, {
+        await fetch(`${PROXY}${url}`, {
           body: data,
           method: 'PUT',
           headers: {
@@ -256,20 +271,22 @@ export const App = () => {
             {/*  </MenuItem>*/}
             {/*</Select>*/}
             {/*</FormControl>*/}
-            <Stack direction="row" alignItems="center">
-              <Typography color="text.secondary">
-                Model status:&nbsp;
-              </Typography>
-              <Typography
-                color="text.secondary"
-                sx={{ textTransform: 'lowercase' }}
-              >
-                {modelStatus}
-              </Typography>
-              {modelStatus === MODEL_STATUS.CHECKING && (
-                <CircularProgress size="1em" sx={{ ml: 1 }} />
-              )}
-            </Stack>
+            {!showPredictions ? (
+              <Stack direction="row" alignItems="center">
+                <Typography color="text.secondary">
+                  Model status:&nbsp;
+                </Typography>
+                <Typography
+                  color="text.secondary"
+                  sx={{ textTransform: 'lowercase' }}
+                >
+                  {modelStatus}
+                </Typography>
+                {modelStatus === MODEL_STATUS.CHECKING && (
+                  <CircularProgress size="1em" sx={{ ml: 1 }} />
+                )}
+              </Stack>
+            ) : null}
             {!showPredictions ? (
               <Grid container>
                 <Grid item xs={6} alignItems="flex-end">
@@ -324,6 +341,7 @@ export const App = () => {
                     labels={labels}
                     labelClasses={labelClasses}
                     src={imageUrl}
+                    predictionsLoading={predictionsLoading}
                   />
                 </Grid>
                 <Grid item xs={4} sx={{ bgcolor: 'background.default', p: 2 }}>
