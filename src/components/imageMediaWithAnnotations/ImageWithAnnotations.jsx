@@ -104,17 +104,21 @@ export const CardMediaWithAnnotations = React.memo(
               <Tooltip
                 sx={{ p: 0 }}
                 title={
-                  <Paper sx={{ p: 1 }}>
-                    <Stack direction="row" alignItems="center">
-                      <ColoredSquare color={colorsMap[label.class_id]} />
-                      <Typography sx={{ fontWeight: 'bold', ml: 1 }}>
-                        {classNamesMap[label.class_id]}
-                      </Typography>
-                    </Stack>
-                    <Stack sx={{ ml: '18px' }}>
-                      Confidence: {label.score.toFixed(2)}
-                    </Stack>
-                  </Paper>
+                  !predictionsLoading ? (
+                    <Paper sx={{ p: 1 }}>
+                      <Stack direction="row" alignItems="center">
+                        <ColoredSquare color={colorsMap[label.class_id]} />
+                        <Typography sx={{ fontWeight: 'bold', ml: 1 }}>
+                          {classNamesMap[label.class_id]}
+                        </Typography>
+                      </Stack>
+                      <Stack sx={{ ml: '18px' }}>
+                        Confidence: {label.score.toFixed(2)}
+                      </Stack>
+                    </Paper>
+                  ) : (
+                    ''
+                  )
                 }
                 followCursor
               >
